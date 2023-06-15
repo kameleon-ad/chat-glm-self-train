@@ -3,6 +3,7 @@ from absl import flags
 
 from transformers import AutoModel, AutoTokenizer
 from transformers import TextDataset, DataCollatorForLanguageModeling
+from transformers import Trainer, TrainingArguments
 from datasets import load_dataset
 
 # Define flags
@@ -12,7 +13,7 @@ flags.DEFINE_integer('nb_epoch', 16, 'The number of epoch.')
 FLAGS = flags.FLAGS
 
 
-def train_with_info(tokenizer, block_size=None):
+def train_with_info(model, tokenizer, block_size=None):
     if block_size is None:
         block_size = 512
 
@@ -27,6 +28,27 @@ def train_with_info(tokenizer, block_size=None):
         mlm=False
     )
 
+    training_args = TrainingArguments(
+        output_dir='./models/info_trained',
+        overwrite_output_dir=True,
+        num_train_epochs=50,
+        per_device_train_batch_size=32,
+        eval_steps=100,
+        save_steps=200,
+        warmup_steps=500,
+        prediction_loss_only=True,
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        data_collator=data_collator,
+        train_dataset=info_dataset,
+        eval_dataset=info_dataset,
+    )
+
+    trainer.train()
+
 
 def main(argv):
     del argv    # Unused
@@ -37,7 +59,7 @@ def main(argv):
     model = AutoModel.from_pretrained(model_checkpoint, trust_remote_code=True).half().cuda()
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, trust_remote_code=True)
 
-    train_with_info(tokenizer)
+    train_with_info(model, tokenizer)
 
     return 0
 
